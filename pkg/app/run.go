@@ -197,6 +197,15 @@ func (r *Run) diff(triggerCleanupEvent bool, detailedExitCode bool, c DiffConfig
 		// If `helm-diff` detected changes but it is not being `helm delete`ed, we should run `helm upgrade`
 		if _, ok := releasesToBeDeleted[id]; !ok {
 			releasesToBeUpdated[id] = release
+
+			// If the update strategy is to reinstall, add the release to the deleted list too
+			if release.UpdateStrategy == "Reinstall" {
+				reinstallRelease := r
+				// Make sure we wait on the delete in the case of a reinstall
+				deleteWait := true
+				reinstallRelease.DeleteWait = &deleteWait
+				releasesToBeDeleted[id] = reinstallRelease
+			}
 		}
 	}
 
