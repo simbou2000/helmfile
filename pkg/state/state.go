@@ -269,6 +269,8 @@ type ReleaseSpec struct {
 	Force *bool `yaml:"force,omitempty"`
 	// Installed, when set to true, `delete --purge` the release
 	Installed *bool `yaml:"installed,omitempty"`
+	// UpdateStrategy, when set, indicate the strategy to use to update the release
+	UpdateStrategy string `yaml:"updateStrategy,omitempty"`
 	// Atomic, when set to true, restore previous state in case of a failed install/upgrade attempt
 	Atomic *bool `yaml:"atomic,omitempty"`
 	// CleanupOnFail, when set to true, the --cleanup-on-fail helm flag is passed to the upgrade command
