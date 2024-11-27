@@ -2743,7 +2743,6 @@ func TestApply(t *testing.T) {
 		lists             map[exectest.ListKey]string
 		diffs             map[exectest.DiffKey]error
 		upgraded          []exectest.Release
-		reinstalled       []exectest.Release
 		deleted           []exectest.Release
 		envs              map[string]string
 		log               string
@@ -3046,7 +3045,57 @@ baz 	4       	Fri Nov  1 08:40:07 2019	DEPLOYED	mychart3-3.1.0	3.1.0      	defau
 			concurrency: 1,
 		},
 		//
-		// install with upgrade and --skip-diff-on-install and reinstall
+		// install with upgrade with reinstall
+		//
+		{
+			name: "install-with-upgrade-with-reinstall",
+			loc:  location(),
+			files: map[string]string{
+				"/path/to/helmfile.yaml": `
+releases:
+- name: baz
+  chart: stable/mychart3
+  disableValidationOnInstall: true
+  updateStrategy: reinstall
+- name: foo
+  chart: stable/mychart1
+  disableValidationOnInstall: true
+  needs:
+  - bar
+- name: bar
+  chart: stable/mychart2
+  disableValidation: true
+  updateStrategy: reinstall
+`,
+			},
+			diffs: map[exectest.DiffKey]error{
+				{Name: "baz", Chart: "stable/mychart3", Flags: "--kube-context default --detailed-exitcode --reset-values"}:                      helmexec.ExitError{Code: 2},
+				{Name: "foo", Chart: "stable/mychart1", Flags: "--disable-validation --kube-context default --detailed-exitcode --reset-values"}: helmexec.ExitError{Code: 2},
+				{Name: "bar", Chart: "stable/mychart2", Flags: "--disable-validation --kube-context default --detailed-exitcode --reset-values"}: helmexec.ExitError{Code: 2},
+			},
+			lists: map[exectest.ListKey]string{
+				{Filter: "^foo$", Flags: listFlags("", "default")}: ``,
+				{Filter: "^bar$", Flags: listFlags("", "default")}: `NAME	REVISION	UPDATED                 	STATUS  	CHART        	APP VERSION	NAMESPACE
+bar 	4       	Fri Nov  1 08:40:07 2019	DEPLOYED	mychart2-3.1.0	3.1.0      	default
+`,
+				{Filter: "^baz$", Flags: listFlags("", "default")}: `NAME	REVISION	UPDATED                 	STATUS  	CHART        	APP VERSION	NAMESPACE
+baz 	4       	Fri Nov  1 08:40:07 2019	DEPLOYED	mychart3-3.1.0	3.1.0      	default
+`,
+			},
+			upgraded: []exectest.Release{
+				{Name: "baz", Flags: []string{"--kube-context", "default"}},
+				{Name: "bar", Flags: []string{"--kube-context", "default"}},
+				{Name: "foo", Flags: []string{"--kube-context", "default"}},
+			},
+			deleted: []exectest.Release{
+				// These releases have updateStrategy=reinstall which will be both uninstalled and installed
+				{Name: "baz", Flags: []string{}},
+				{Name: "bar", Flags: []string{}},
+			},
+			concurrency: 1,
+		},
+		//
+		// install with upgrade and --skip-diff-on-install with reinstall
 		//
 		{
 			name:              "install-with-upgrade-with-skip-diff-on-install-with-reinstall",
@@ -3058,7 +3107,7 @@ releases:
 - name: baz
   chart: stable/mychart3
   disableValidationOnInstall: true
-  upgradeStrategy: reinstall
+  updateStrategy: reinstall
 - name: foo
   chart: stable/mychart1
   disableValidationOnInstall: true
@@ -3067,7 +3116,7 @@ releases:
 - name: bar
   chart: stable/mychart2
   disableValidation: true
-  upgradeStrategy: reinstall
+  updateStrategy: reinstall
 `,
 			},
 			diffs: map[exectest.DiffKey]error{
@@ -3084,13 +3133,15 @@ baz 	4       	Fri Nov  1 08:40:07 2019	DEPLOYED	mychart3-3.1.0	3.1.0      	defau
 `,
 			},
 			upgraded: []exectest.Release{
-				{Name: "foo", Flags: []string{"--kube-context", "default"}},
-			},
-			reinstalled: []exectest.Release{
 				{Name: "baz", Flags: []string{"--kube-context", "default"}},
 				{Name: "bar", Flags: []string{"--kube-context", "default"}},
+				{Name: "foo", Flags: []string{"--kube-context", "default"}},
 			},
-			deleted:     []exectest.Release{},
+			deleted: []exectest.Release{
+				// These releases have updateStrategy=reinstall which will be both uninstalled and installed
+				{Name: "baz", Flags: []string{}},
+				{Name: "bar", Flags: []string{}},
+			},
 			concurrency: 1,
 		},
 		//
@@ -3679,7 +3730,6 @@ releases:
 				}
 			}
 			wantUpgrades := tc.upgraded
-			wantReinstalls := tc.reinstalled
 			wantDeletes := tc.deleted
 
 			var helm = &exectest.Helm{
@@ -3752,21 +3802,6 @@ releases:
 					}
 				}
 
-				if len(wantReinstalls) > len(helm.Releases) {
-					t.Fatalf("insufficient number of reinstalls: got %d, want %d", len(helm.Releases), len(wantReinstalls))
-				}
-
-				for relIdx := range wantReinstalls {
-					if wantReinstalls[relIdx].Name != helm.Releases[relIdx].Name {
-						t.Errorf("releases[%d].name: got %q, want %q", relIdx, helm.Releases[relIdx].Name, wantReinstalls[relIdx].Name)
-					}
-					for flagIdx := range wantReinstalls[relIdx].Flags {
-						if wantReinstalls[relIdx].Flags[flagIdx] != helm.Releases[relIdx].Flags[flagIdx] {
-							t.Errorf("releaes[%d].flags[%d]: got %v, want %v", relIdx, flagIdx, helm.Releases[relIdx].Flags[flagIdx], wantReinstalls[relIdx].Flags[flagIdx])
-						}
-					}
-				}
-
 				if len(wantDeletes) > len(helm.Deleted) {
 					t.Fatalf("insufficient number of deletes: got %d, want %d", len(helm.Deleted), len(wantDeletes))
 				}
@@ -3777,7 +3812,7 @@ releases:
 					}
 					for flagIdx := range wantDeletes[relIdx].Flags {
 						if wantDeletes[relIdx].Flags[flagIdx] != helm.Deleted[relIdx].Flags[flagIdx] {
-							t.Errorf("releaes[%d].flags[%d]: got %v, want %v", relIdx, flagIdx, helm.Deleted[relIdx].Flags[flagIdx], wantDeletes[relIdx].Flags[flagIdx])
+							t.Errorf("releases[%d].flags[%d]: got %v, want %v", relIdx, flagIdx, helm.Deleted[relIdx].Flags[flagIdx], wantDeletes[relIdx].Flags[flagIdx])
 						}
 					}
 				}
