@@ -18,10 +18,6 @@ type ApplyOptions struct {
 	DetailedExitcode bool
 	// StripTrailingCR is true if trailing carriage returns should be stripped during diffing
 	StripTrailingCR bool
-	// TODO: Remove this function once Helmfile v0.x
-	// DEPRECATED: Use skip-cleanup instead
-	RetainValuesFiles bool
-
 	// SkipCleanup is true if the cleanup of temporary values files should be skipped
 	SkipCleanup bool
 	// SkipCRDs is true if the CRDs should be skipped
@@ -75,6 +71,8 @@ type ApplyOptions struct {
 
 	// TakeOwnership is true if the ownership should be taken
 	TakeOwnership bool
+
+	SyncReleaseLabels bool
 }
 
 // NewApply creates a new Apply
@@ -123,7 +121,7 @@ func (a *ApplyImpl) StripTrailingCR() bool {
 
 // DiffOutput returns the diff output.
 func (a *ApplyImpl) DiffOutput() string {
-	return a.ApplyOptions.Output
+	return a.Output
 }
 
 // IncludeNeeds returns the include needs.
@@ -139,12 +137,6 @@ func (a *ApplyImpl) IncludeTests() bool {
 // IncludeTransitiveNeeds returns the include transitive needs.
 func (a *ApplyImpl) IncludeTransitiveNeeds() bool {
 	return a.ApplyOptions.IncludeTransitiveNeeds
-}
-
-// TODO: Remove this function once Helmfile v0.x
-// RetainValuesFiles returns the retain values files.
-func (a *ApplyImpl) RetainValuesFiles() bool {
-	return a.ApplyOptions.RetainValuesFiles
 }
 
 // ShowSecrets returns the show secrets.
@@ -275,4 +267,8 @@ func (a *ApplyImpl) HideNotes() bool {
 // TakeOwnership returns the TakeOwnership.
 func (a *ApplyImpl) TakeOwnership() bool {
 	return a.ApplyOptions.TakeOwnership
+}
+
+func (a *ApplyImpl) SyncReleaseLabels() bool {
+	return a.ApplyOptions.SyncReleaseLabels
 }

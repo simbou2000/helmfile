@@ -9,12 +9,10 @@ import (
 	"slices"
 	"strings"
 	"unicode"
-
-	"github.com/helmfile/helmfile/pkg/runtime"
 )
 
 var (
-	EnvironmentsAndReleasesWithinSameYamlPartErr = errors.New("environments and releases cannot be defined within the same YAML part. Use --- to extract the environments into a dedicated part")
+	ErrEnvironmentsAndReleasesWithinSameYamlPart = errors.New("environments and releases cannot be defined within the same YAML part. Use --- to extract the environments into a dedicated part")
 	topConfigKeysRegex                           = regexp.MustCompile(`^[a-zA-Z]+:`)
 	separatorRegex                               = regexp.MustCompile(`^--- *$`)
 	topkeysPriority                              = map[string]int{
@@ -51,7 +49,7 @@ func forbidEnvironmentsWithReleases(filePath string, content []byte) (bool, erro
 	}
 	for i := 0; i < len(result)-1; i++ {
 		if result[i] != "---" && result[i+1] != "---" {
-			return runtime.V1Mode, EnvironmentsAndReleasesWithinSameYamlPartErr
+			return true, ErrEnvironmentsAndReleasesWithinSameYamlPart
 		}
 	}
 	return false, nil
@@ -123,7 +121,7 @@ func TopConfigKeysVerifier(filePath string, helmfileContent []byte) (bool, error
 		preKey := orderKeys[i-1]
 		currentKey := orderKeys[i]
 		if topkeysPriority[preKey] > topkeysPriority[currentKey] {
-			return runtime.V1Mode, fmt.Errorf("top-level config key %s must be defined before %s in %s", currentKey, preKey, filePath)
+			return true, fmt.Errorf("top-level config key %s must be defined before %s in %s", currentKey, preKey, filePath)
 		}
 	}
 	return false, nil

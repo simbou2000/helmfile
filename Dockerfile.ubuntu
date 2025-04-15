@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.23-alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:1.24-alpine AS builder
 
 RUN apk add --no-cache make git
 WORKDIR /workspace/helmfile
@@ -35,7 +35,7 @@ ENV HELM_CONFIG_HOME="${HELM_CONFIG_HOME}"
 ARG HELM_DATA_HOME="${HOME}/.local/share/helm"
 ENV HELM_DATA_HOME="${HELM_DATA_HOME}"
 
-ARG HELM_VERSION="v3.17.1"
+ARG HELM_VERSION="v3.17.3"
 ENV HELM_VERSION="${HELM_VERSION}"
 ARG HELM_LOCATION="https://get.helm.sh"
 ARG HELM_FILENAME="helm-${HELM_VERSION}-${TARGETOS}-${TARGETARCH}.tar.gz"
@@ -43,8 +43,8 @@ RUN set -x && \
     curl --retry 5 --retry-connrefused -LO "${HELM_LOCATION}/${HELM_FILENAME}" && \
     echo Verifying ${HELM_FILENAME}... && \
     case ${TARGETPLATFORM} in \
-    "linux/amd64")  HELM_SHA256="3b66f3cd28409f29832b1b35b43d9922959a32d795003149707fea84cbcd4469"  ;; \
-    "linux/arm64")  HELM_SHA256="c86c9b23602d4abbfae39d9634e25ab1d0ea6c4c16c5b154113efe316a402547"  ;; \
+    "linux/amd64")  HELM_SHA256="ee88b3c851ae6466a3de507f7be73fe94d54cbf2987cbaa3d1a3832ea331f2cd"  ;; \
+    "linux/arm64")  HELM_SHA256="7944e3defd386c76fd92d9e6fec5c2d65a323f6fadc19bfb5e704e3eee10348e"  ;; \
     esac && \
     echo "${HELM_SHA256}  ${HELM_FILENAME}" | sha256sum -c && \
     echo Extracting ${HELM_FILENAME}... && \
@@ -99,10 +99,10 @@ RUN set -x && \
     [ "$(age --version)" = "${AGE_VERSION}" ] && \
     [ "$(age-keygen --version)" = "${AGE_VERSION}" ]
 
-RUN helm plugin install https://github.com/databus23/helm-diff --version v3.9.14 && \
-    helm plugin install https://github.com/jkroepke/helm-secrets --version v4.6.0 && \
-    helm plugin install https://github.com/hypnoglow/helm-s3.git --version v0.16.2 && \
-    helm plugin install https://github.com/aslafy-z/helm-git.git --version v0.16.0 && \
+RUN helm plugin install https://github.com/databus23/helm-diff --version v3.11.0 && \
+    helm plugin install https://github.com/jkroepke/helm-secrets --version v4.6.3 && \
+    helm plugin install https://github.com/hypnoglow/helm-s3.git --version v0.16.3 && \
+    helm plugin install https://github.com/aslafy-z/helm-git.git --version v1.3.0 && \
     rm -rf ${HELM_CACHE_HOME}/plugins
 
 # Allow users other than root to use helm plugins located in root home
